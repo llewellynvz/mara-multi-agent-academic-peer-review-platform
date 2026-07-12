@@ -33,7 +33,7 @@ Large language models make a new kind of pre-submission review possible, but a s
 
 ### 1.2 The product
 
-MARA is a self-hosted web application that runs a complete editorial review process on one manuscript at a time. It is not a chatbot and not a writing assistant. It is a pipeline with fixed phases, defined gates, and an audit trail:
+MARA is a self-hosted web application that runs a complete editorial review process on one manuscript at a time, as a pipeline with fixed phases, defined gates, and an audit trail:
 
 1. The manuscript is screened for embedded prompt-injection content before any reviewing agent sees it.
 2. Analysis agents build a structured map of the manuscript: its claims, evidence, design, figures, and declared metadata.
@@ -65,7 +65,7 @@ The reviewing methodology exists and has produced complete reviews in production
 
 **Goals**
 
-- G1. A researcher with a laptop, Docker, and an API key completes their first review within 30 minutes of cloning the repository.
+- G1. A researcher with a laptop, Docker, and an API key goes from cloning the repository to a running review in under 30 minutes.
 - G2. A full-depth review of a standard empirical manuscript completes in roughly 38 to 48 minutes through one release-gate cycle on a hosted frontier provider.
 - G3. Every released report passes the grounding validator: 100 percent of substantive claims resolve to ledger finding IDs with manuscript anchors.
 - G4. The full review methodology of MARA v3.0 is preserved, including the capabilities the interim system dropped: the seven-agent swarm design, the quality-metrics composite, the recommendation engine bands, and the reporting-guideline selector.
@@ -153,13 +153,15 @@ Requirement language: "must" is binding for v1.0. "Should" is binding unless a d
 - FR-ING-04. Parsing must produce the structured manuscript object defined in annex 5: section map, metadata, figure and table inventory, and reference list.
 - FR-ING-05. The user must confirm or correct the detected section map before frontier-tier spend begins.
 - FR-ING-06. Supplementary files (appendices, data dictionaries) must be attachable to the same review and enter the same sanitization path.
+- FR-ING-07. The supported ceiling is 25,000 words of body text. An upload past the ceiling is rejected at the lite parse with a plain-language explanation and a suggestion to review sections separately, and is never silently truncated.
+- FR-ING-08. v1.0 supports English manuscripts. The lite parse detects the manuscript language, and a non-English manuscript halts before any frontier-tier spend with a plain-language message that review quality is not validated for that language.
 
 ### 4.2 Sanitization and clarifying questions
 
 - FR-SAN-01. The sanitizer must run before any other agent reads manuscript content, applying the three-tier quarantine defined in annex 11.
 - FR-SAN-02. Tier-3 findings must halt the run with a plain-language explanation and no partial review output.
 - FR-CLQ-01. Clarifying questions must fire only after the lite parse, so every question is informed by detected values.
-- FR-CLQ-02. The question set is fixed at two blocks: confirm-or-correct (field, design, type) and four choices (journal, depth, focus weighting, reviewer note). No free-form mid-run questions.
+- FR-CLQ-02. The question set is fixed at two blocks: confirm-or-correct (field, design, type) and four choices (journal, preset from Fast, Balanced, or Thorough, focus weighting, reviewer note). No free-form mid-run questions.
 - FR-CLQ-03. Answers must write into the run manifest consumed by lens activation and the field-context agent. Focus answers adjust weighting only and must never deactivate a lens.
 - FR-CLQ-04. A skip control must start the run with detected values and defaults in one click.
 
@@ -188,18 +190,21 @@ Requirement language: "must" is binding for v1.0. "Should" is binding unless a d
 - FR-OUT-03. The Word documents must follow the brand respec in annex 10 and open without warnings in Microsoft Word and LibreOffice.
 - FR-OUT-04. Editor-register content must never appear in the author-facing report, enforced by the scope field on every finding and verified at the gate.
 - FR-OUT-05. A complete archive export (report, notes, ledger, run audit) must be downloadable as one zip.
+- FR-OUT-06. A release-gate pass releases the markdown deliverables. A Word-rendering failure afterwards leaves the run completed with a visible warning badge and a docx retry available, and never unreleases the markdown.
 
 ### 4.6 Library and run management
 
 - FR-LIB-01. The library must list all reviews with status, recommendation, rubric average, and date, and reconnect to any running review's live view.
 - FR-LIB-02. Deleting a review must purge its manuscript, findings, deliverables, and blobs completely.
 - FR-LIB-03. Re-running a review must create a new run keyed to the same manuscript record, never overwrite a prior run.
+- FR-LIB-04. A review left awaiting clarifying input for 24 hours must move to paused with reason `awaiting_input_timeout` and release the active run slot to the queue, never auto-starting with defaults, with resume available at any time.
 
 ### 4.7 Settings
 
 - FR-SET-01. Settings must cover providers and keys, per-phase-group tiers, default preset, data location, telemetry, and a danger zone (purge all data).
 - FR-SET-02. Key storage must follow annex 11 (AES-256-GCM envelope encryption, optional session-only mode).
 - FR-SET-03. Changing settings must never affect an in-flight run.
+- FR-SET-04. Settings must offer an optional per-run cost ceiling in US dollars, set in settings and overridable at the clarifying step, stored in the run manifest.
 
 ---
 
@@ -238,9 +243,13 @@ Full specification in `docs/prd/11-security-privacy.md`. Normative summary: thre
 - NFR-03 (resumability). Any single process crash must lose at most one phase of work. Resume must not duplicate ledger rows or dispatch spend for completed phases.
 - NFR-04 (integrity of outputs). The grounding validator must pass on 100 percent of released reports. This is a release condition, not a quality target.
 - NFR-05 (portability). Supported hosts: Windows 11, macOS 14+, Ubuntu 22.04+, each via Docker Compose. The reference machine for all timing targets: 4 vCPU, 16 GB RAM, SSD.
-- NFR-06 (concurrency). v1.0 supports one active run per instance. Queued runs start automatically in order.
+- NFR-06 (concurrency). v1.0 supports one active run per instance. A run requested while the slot is busy is held in the `queued` status and starts automatically, oldest first, when the slot frees.
 - NFR-07 (availability of externals). Citation registries degrade gracefully: if Crossref, OpenAlex, and Semantic Scholar are all unreachable, the citation audit reports not-run status rather than fabricating verification.
 - NFR-08 (data locality). All review data lives under one user-chosen directory, movable and back-up-able as a unit.
+- NFR-09 (log rotation). Logs rotate daily and are retained for 14 days by default.
+- NFR-10 (disk headroom). The application warns when free disk falls under 2 GB and refuses to start a new run when free disk is under 500 MB.
+- NFR-11 (backup and integrity). Backup guidance is to stop the application or use the SQLite online backup API, documented in `docs`, where a naked file copy of a live WAL database is called out as unsafe. The application runs `PRAGMA integrity_check` at boot and refuses to start on a corruption result, with recovery guidance.
+- NFR-12 (network configuration). The HTTP port is configurable by environment variable, and the egress client honours `HTTP_PROXY` and `HTTPS_PROXY`.
 
 ## 13. Observability
 
@@ -305,7 +314,7 @@ Revision re-review is the standout later feature: the append-only ledger and sta
 
 | # | Risk | Mitigation |
 |---|---|---|
-| 1 | Runtime target missed under provider rate limits | Central concurrency limiter, timeout plus one retry with tier fallback, honest live ETA, depth presets |
+| 1 | Runtime target missed under provider rate limits | Central concurrency limiter, timeout plus one retry with provider fallback, honest live ETA, depth presets |
 | 2 | Prompt-cache misses on parallel fan-out | Shared-prefix prompt structure, cache-warming pilot call, dispatch batching within cache TTL, cached-share monitoring |
 | 3 | Structured outputs degrade nuanced review prose | Hybrid envelopes (markdown body inside typed shell), schema-repair retries, golden-set checks on gate schemas |
 | 4 | GROBID misparses non-standard manuscripts | DOCX path, pure-Node fallback with warning, mandatory parse confirmation before frontier spend |
@@ -319,3 +328,13 @@ Revision re-review is the standout later feature: the append-only ledger and sta
 - OQ-2. Whether the lite parse (pre-questions) uses the cheap tier of the user's provider or a fixed minimal local pass. Decide in slice (a) of the build by measuring quality difference on the fixture set.
 - OQ-3. The exact wording of the no-derivatives licence clause needs legal review before publication (not before build).
 - OQ-4. Whether Semantic Scholar remains in the default citation-verification chain or becomes optional, given its 1 request-per-second authenticated limit. Decide in slice (e) from measured audit durations.
+
+---
+
+## Document history
+
+| Revision | Date | Change |
+|---|---|---|
+| Draft 1 | 12 July 2026 | Full first draft: master document plus eight annexes |
+| Draft 2 | 12 July 2026 | First independent review round (consistency, invariant fidelity, ground-truth verification). Verdict: fix and re-review. All 14 findings resolved: deliverable naming unified, event stream reconciled with the persisted event table, decision-stability metric single-sourced, runtime statements corrected, enum and band operators aligned |
+| Draft 3 | 12 July 2026 | Second independent review round (completeness lens). Verdict: fix and re-review. All 12 findings resolved: clarifying-questions contract, review presets, prompt packaging and injection, run queue, manuscript ceilings and language, cost ceiling, fan-out failure granularity, lite-parse boundary, sleep recovery, input timeout, operational non-functionals, prose corrections |

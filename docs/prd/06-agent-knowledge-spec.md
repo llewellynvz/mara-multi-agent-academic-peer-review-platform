@@ -239,3 +239,11 @@ const ShippedReportEnvelope = z.object({
 **AGENT-28.** The migration preserves the ledger ID scheme `REV-<LENS>-<seq>` verbatim across every prefix, so audit trails from the markdown era remain parseable. A test asserts the prefix set matches the knowledge/02 assignment exactly.
 
 **AGENT-29.** No structured envelope carries a rule value that duplicates a knowledge module. Thresholds, bands, and taxonomies are read from the loaded modules at run time, not hard-coded into a schema default. A test asserts the recommendation thresholds are absent from the schema source and present only in knowledge/03.
+
+## 6.6 Prompt packaging and injection
+
+Each agent lives in its own directory `/agents/<agent-name>/` holding three files: `prompt.md` (the role instruction), `schema.ts` (the Zod output schema), and `manifest.json` (the semver prompt version, the model tier, and the ordered list of knowledge modules to include). These three files are the complete definition of an agent.
+
+At worker start the prompt assembler builds each agent's static system frame by concatenating, in order, the global constitution frame, the manifest-listed knowledge modules verbatim, and `prompt.md`. That concatenation is the cached shared prefix of PIPE-04. Knowledge modules are included whole and unedited, so the single source of truth in `/knowledge` is never paraphrased into a prompt. Every dispatch records the prompt version it ran (Section 7, `dispatches.prompt_version`).
+
+**AGENT-30.** Each agent ships one golden-fixture behaviour test: a fixture input run through the real prompt and the real schema must yield a schema-valid output that satisfies named assertions. For example, the sanitiser flags a planted tier-2 instruction, and the statistical lens flags a planted impossible mean. A test asserts every agent has a bound golden fixture whose output is schema-valid and meets its named assertions.

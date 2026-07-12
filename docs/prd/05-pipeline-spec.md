@@ -40,6 +40,8 @@ Each phase below states its purpose, inputs, outputs, dispatch group, model tier
 - **Parallelism.** Mode B overlaps the tail of mode A once mode A's map is available. Mode B does not start before the map exists.
 - **Gate condition.** The activation map is recorded with a one-line rationale per active lens before Phase 3 dispatches.
 
+**PIPE-25.** The lite parse is deterministic extraction plus one cheap-tier detection dispatch that produces a provisional field, study design, manuscript type, language, and word count, each labelled provisional. The analyst mode B classification remains authoritative, except that a value the user explicitly confirmed at the clarifying step is a constraint: when mode B disagrees with a confirmed value, the run continues with the user's value, logs the disagreement to `review_events`, and surfaces it in the reviewer's private notes. A test confirms a value against a deliberately conflicting mode B classification and asserts the run keeps the user's value and records the disagreement.
+
 ### Phase 2: Domain context
 
 - **Purpose.** Build the comparative backdrop and verify the reference apparatus, without letting background literature override the submitted evidence.
@@ -170,6 +172,8 @@ Runtimes assume the stated precondition. They are disclosed to the user as a liv
 
 **PIPE-13.** The workflow computes and surfaces a live ETA at run start and updates it at each fix-cycle entry. The ETA reflects the actual provider profile in use, hosted or local. A test asserts the local profile never reports the hosted figures.
 
+**PIPE-26.** The worker checks projected spend before every dispatch. When the next dispatch would breach the configured per-run cost ceiling (FR-SET-04), the worker finishes its in-flight dispatches, checkpoints at the current sub-step, sets the run to paused with reason `cost_ceiling`, and emits the SSE events. Resuming after the user raises the ceiling continues from the checkpoint. A test sets a ceiling below the projected spend of the next dispatch and asserts the run pauses with reason `cost_ceiling` at a checkpoint rather than issuing the dispatch.
+
 ## 5.6 Gate machinery
 
 The release gate lives at Phase 7 and is the only quality gate that can send work back. It is a `.dountil()` loop over the block {writer mode B (or a specialist re-dispatch) → meta-reviewer re-run when recommendation inputs changed → final critic}. The loop exits when the critic returns **pass** or when the cycle counter reaches two.
@@ -209,14 +213,34 @@ The pipeline is autonomous by default. The release gate replaces the user approv
 
 **PIPE-20.** A suspended workflow persists its full state and resumes deterministically from the suspension point with no re-paid phases. A test suspends at a gate, restarts the worker, and asserts clean resume.
 
+**PIPE-27.** A review left in `awaiting_input` for 24 hours moves to paused with reason `awaiting_input_timeout` and releases the active run slot to the queue. It never auto-starts with defaults, because that would spend money without consent. Resume is available at any time. A test holds a review in `awaiting_input` past the timeout and asserts it pauses, releases the slot, and starts no dispatch.
+
 ## 5.8 Failure handling per phase
 
 The failure contract is uniform: an agent that returns unusable output is re-dispatched once with the specific defect named. A second unusable return halts that phase, records a run-error flag in the checkpoint and in the reviewer's private notes run audit, and surfaces to the user with options.
 
 **PIPE-21.** Unusable output is defined by schema validation failure or a contract miss (missing anchor, missing required field, ungrounded claim). The retry dispatch names the exact defect. A test feeds a schema-invalid return and asserts one named-defect retry, then a halt on a second failure.
 
+**PIPE-28.** Dispatch results within a parallel fan-out persist individually as they complete. A failed dispatch is retried once with the defect named, and a phase halt preserves every completed dispatch so a retry-phase re-runs only the failed dispatches and never re-pays completed ones. Provider-level failures (rate limit, outage) use backoff and, when a fallback provider is configured, retry there. There is no automatic tier downgrade for lens, synthesis, or gate work. A test fails one dispatch inside a fan-out, asserts the completed dispatches persist, and asserts the retry-phase re-runs only the failed dispatch.
+
+**PIPE-29.** Every dispatch records a start timestamp. The worker treats a monotonic-clock jump or an in-flight dispatch older than its timeout as stale, cancels it, and re-issues from the last checkpoint. A sleep or suspend can therefore cost a cache-expired prefix, disclosed in the cost meter, but never corrupts run state. A test simulates a clock jump past a dispatch timeout and asserts the stale dispatch is cancelled and re-issued from the checkpoint.
+
 **PIPE-22.** A hard stop halts cleanly with the checkpoint updated and a halt report carrying what was tried, the evidence, and two to three options. The hard-stop conditions are a Tier 3 tampering verdict, an ungroundable recommendation after cycle two, and manuscript materials too incomplete to review. A clean halt beats an ungrounded review. A test asserts each hard-stop condition produces a halt report and no shipped document.
 
 **PIPE-23.** A missing external artifact never produces an improvised substitute. The dependent check is marked not-run with the artifact named, the phase continues, and the gap is carried to the reviewer's private notes. A test asserts a missing similarity report yields a not-run outcome rather than an invented similarity figure.
 
 **PIPE-24.** Every halt, retry, arbitration, and gate cycle is written to the run audit in the reviewer's private notes with a checkpoint pointer, so the editor sees the full procedural history of the run. A test asserts the run audit reflects the recorded gate-cycle counters and any arbitration events.
+
+## 5.9 Review presets
+
+A preset sets the breadth and depth of a run. Three presets exist and are the depth choice used everywhere the product offers one. Model-tier assignments (section 5.2) do not change across presets. A preset changes how many lenses activate, how wide the challenge round runs, and how large the swarm is, never which tier a step uses.
+
+| Preset | Lenses | Challenge round | Swarm | Target |
+|---|---|---|---|---|
+| Fast | The six core lenses only | The three decision-driving lenses chosen by severity | Population 12, rounds 0 to 2 | 25 to 30 minutes |
+| Balanced (default) | The activation-map lenses (six to eleven) | All active lenses | Population 24, rounds 0 to 4 | 38 to 48 minutes, 12 US dollars |
+| Thorough | All plausible conditional lenses activated | All active lenses | Population 48, rounds 0 to 4 | Approximately 60 to 75 minutes, disclosed up front |
+
+Local providers default to Fast.
+
+**PIPE-30.** The preset is chosen at setup, overridable per review at the clarifying step, and recorded in the run manifest. A test asserts a per-review preset override is applied to lens activation, challenge-round breadth, and swarm population, and that the chosen preset appears in the run manifest.

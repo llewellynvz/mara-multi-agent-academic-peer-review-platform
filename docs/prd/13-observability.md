@@ -33,6 +33,8 @@ Observability is local first. Everything an owner needs to understand a run is c
 
 **OBS-08** API keys, master keys, wrapped data keys, and passphrases never appear in a log at any level (Section 11, SEC-16). The logger redacts known secret fields before serialising a record.
 
+**OBS-20** The structured log files rotate daily and are retained for 14 days by default, with the retention window configurable. Rotation covers the on-disk log files only and never touches the append-only database tables that back the statistics panel (13.1).
+
 ## 13.3 Optional Langfuse wiring
 
 **OBS-09** Langfuse is enabled only when the `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `LANGFUSE_HOST` environment variables are present. When they are absent, the exporter is a no-op and the product runs with local statistics only. The absence of Langfuse is never an error and never blocks a run.

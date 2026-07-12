@@ -35,7 +35,7 @@ type Review = {
   id: string;
   slug: string;
   title: string | null;
-  status: "created" | "sanitizing" | "running" | "paused"
+  status: "created" | "queued" | "sanitizing" | "running" | "paused"
         | "awaiting_input" | "completed" | "failed" | "cancelled";
   currentPhase: string | null;
   recommendation: string | null;
@@ -51,7 +51,31 @@ type Review = {
 
 **API-09** `POST /api/reviews/{id}/manuscript` accepts a single file as `multipart/form-data` under the field `file`. The server computes the sha256, stores the original blob (Section 7, DATA-18), inserts the `manuscripts` row, and returns `{ manuscriptId: string, sha256: string, byteSize: number, quarantine: "pending" }`. Uploading a second file to a review that already holds a manuscript returns `409`.
 
-**API-10** `POST /api/reviews/{id}/answers` submits an answer to a clarifying question raised during a run. Request `{ questionId: string, answer: string }`. The server writes the answer to the review's `options_json` merge area and inserts a `run_commands` resume intent if the review was `awaiting_input`. Response `{ accepted: true }`.
+**API-10** `POST /api/reviews/{id}/answers` submits a batch of answers to the clarifying questions raised after the lite parse. Request `{ answers: { questionId: string, value: string | string[] }[], useDefaults?: boolean }`, where `useDefaults: true` submits every unanswered question at its default and is the skip control. Submitting moves the review out of `awaiting_input`, writes the answers to the review's `options_json` merge area, and inserts a `run_commands` resume intent. Response `{ accepted: true }`.
+
+**API-29** `GET /api/reviews/{id}/questions` returns the clarifying-question set once the lite parse has completed. Response `{ detected: Detected, questions: Question[] }`. Before the lite parse completes the endpoint returns `409` with the error code `parse_incomplete`.
+
+```ts
+// GET /api/reviews/{id}/questions
+type Detected = {
+  field: string;
+  subfield?: string;
+  studyDesign: string;
+  manuscriptType: string;
+  language: string;
+  wordCount: number;
+  parseQuality: "good" | "degraded";
+};
+type Question = {
+  id: string;
+  kind: "confirm" | "choice" | "text" | "multi";
+  prompt: string;
+  detectedValue?: string;
+  options?: string[];
+  default: string;
+};
+type QuestionsResponse = { detected: Detected; questions: Question[] };
+```
 
 **API-11** `DELETE /api/reviews/{id}` purges the review and every artefact (Section 7, DATA-19 through DATA-21). It returns `200` with `{ purged: true }` once the guarded transaction and the on-disk cleanup both complete. There is no soft delete.
 
@@ -71,7 +95,7 @@ Run control is expressed as intents. The API server inserts a row into `run_comm
 
 **API-13** `POST /api/reviews/{id}/retry-phase` takes `{ phase: string }` and validates that the named phase has a checkpoint in `failed` or `completed` state. An unknown phase returns `422`.
 
-**API-14** Run-control endpoints are idempotent against the current state. Calling `run` on a review that is already `running` returns `200` with `{ accepted: true, command: "run", noop: true }` and the current status, rather than starting a second run. Calling `pause` on a run that is not active returns the same shape with `noop: true`.
+**API-14** Run-control endpoints are idempotent against the current state. Calling `run` on a review that is already `running` returns `200` with `{ accepted: true, command: "run", noop: true }` and the current status, rather than starting a second run. Calling `pause` on a run that is not active returns the same shape with `noop: true`. Calling `run` while another review holds the active run slot sets this review to `queued` and returns `200` with `{ accepted: true, command: "run", queued: true }`. The worker dequeues the oldest `queued` review when the active run reaches a terminal state or releases its slot.
 
 ## 8.5 Deliverables
 

@@ -28,7 +28,7 @@ The run header. One row per manuscript under review.
 | id | TEXT | PRIMARY KEY |
 | slug | TEXT | NOT NULL, UNIQUE |
 | title | TEXT | NULL |
-| status | TEXT | NOT NULL, DEFAULT `created`, CHECK in (`created`, `sanitizing`, `running`, `paused`, `awaiting_input`, `completed`, `failed`, `cancelled`) |
+| status | TEXT | NOT NULL, DEFAULT `created`, CHECK in (`created`, `queued`, `sanitizing`, `running`, `paused`, `awaiting_input`, `completed`, `failed`, `cancelled`) |
 | current_phase | TEXT | NULL, CHECK in (`phase_0` … `phase_8`) |
 | recommendation | TEXT | NULL, CHECK in (`accept`, `minor_revision`, `major_revision`, `reject_and_resubmit`, `reject`) |
 | recommendation_confidence | REAL | NULL, CHECK between 0 and 1 |
@@ -147,6 +147,7 @@ One row per model call. Drives the local statistics panel and the optional Langf
 | agent | TEXT | NOT NULL |
 | provider | TEXT | NOT NULL, CHECK in (`anthropic`, `openai`, `google`, `local`) |
 | model | TEXT | NOT NULL |
+| prompt_version | TEXT | NOT NULL |
 | tokens_in | INTEGER | NOT NULL, DEFAULT 0 |
 | tokens_out | INTEGER | NOT NULL, DEFAULT 0 |
 | tokens_cached | INTEGER | NOT NULL, DEFAULT 0 |
