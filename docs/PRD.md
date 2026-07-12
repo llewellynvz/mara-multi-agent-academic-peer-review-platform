@@ -15,7 +15,7 @@
 
 ## Executive summary
 
-MARA turns a proven but slow multi-agent peer-review methodology into a self-hosted web application that any researcher can run on their own machine with their own model API key. A researcher uploads a manuscript, confirms a short set of informed questions, and receives a verified developmental peer review in 30 to 45 minutes: a summary verdict card, a full evidence-grounded report rendered in the browser, and a branded Word document for download.
+MARA turns a proven but slow multi-agent peer-review methodology into a self-hosted web application that any researcher can run on their own machine with their own model API key. A researcher uploads a manuscript, confirms a short set of informed questions, and receives a verified developmental peer review in about 40 minutes on the happy path and under 50 minutes through one release-gate cycle: a summary verdict card, a full evidence-grounded report rendered in the browser, and a branded Word document for download.
 
 The review methodology is not new. It is the MARA v3.0 architecture already in production use as an orchestrated reviewing pipeline: nine phases, eleven specialist reviewing lenses, six integrity screens, a simulated reviewer population that stress-tests findings, and an adversarial release gate that blocks any report whose claims do not trace to evidence. What changes is the delivery. The pipeline moves from a conversational agent environment that takes around three hours per review into a deterministic TypeScript workflow engine that runs the same depth in roughly a fifth of the wall-clock time, wrapped in a front end built on the Psynalytics design system.
 
@@ -66,7 +66,7 @@ The reviewing methodology exists and has produced complete reviews in production
 **Goals**
 
 - G1. A researcher with a laptop, Docker, and an API key completes their first review within 30 minutes of cloning the repository.
-- G2. A full-depth review of a standard empirical manuscript completes in 30 to 45 minutes through one release-gate cycle on a hosted frontier provider.
+- G2. A full-depth review of a standard empirical manuscript completes in roughly 38 to 48 minutes through one release-gate cycle on a hosted frontier provider.
 - G3. Every released report passes the grounding validator: 100 percent of substantive claims resolve to ledger finding IDs with manuscript anchors.
 - G4. The full review methodology of MARA v3.0 is preserved, including the capabilities the interim system dropped: the seven-agent swarm design, the quality-metrics composite, the recommendation engine bands, and the reporting-guideline selector.
 - G5. The interface and every generated document carry the Psynalytics design system.
@@ -136,7 +136,7 @@ A methods-support unit or graduate school running a shared instance on a lab ser
 ### 3.3 Journey-level requirements
 
 - JRN-01. The time from `docker compose up -d` to first completed review on the reference machine must not exceed 75 minutes, of which setup is under 10.
-- JRN-02. No screen in the core journey may require the user to read documentation to proceed.
+- JRN-02. Every screen in the core journey must carry inline guidance sufficient to proceed. Verified by a scripted first-run walkthrough that completes the journey without opening documentation.
 - JRN-03. Every dead end (parse failure, tier-3 quarantine, gate block, provider outage) must present a recovery path or a plain-language halt explanation on screen.
 
 ---
@@ -233,7 +233,7 @@ Full specification in `docs/prd/11-security-privacy.md`. Normative summary: thre
 
 ## 12. Non-functional requirements
 
-- NFR-01 (runtime). Median full review on the Balanced preset with a hosted frontier provider: 45 minutes or less through one gate cycle. Two-cycle runs may reach 56 minutes and must be disclosed by the live ETA as soon as cycle 2 begins.
+- NFR-01 (runtime). Median full review on the Balanced preset with a hosted frontier provider: 48 minutes or less through one gate cycle. Two-cycle runs may reach 56 minutes and must be disclosed by the live ETA as soon as cycle 2 begins.
 - NFR-02 (cost). The Balanced preset must complete a 9,000-word manuscript for 12 US dollars or less in model spend at July 2026 frontier pricing, with the pre-run estimate accurate within 40 percent.
 - NFR-03 (resumability). Any single process crash must lose at most one phase of work. Resume must not duplicate ledger rows or dispatch spend for completed phases.
 - NFR-04 (integrity of outputs). The grounding validator must pass on 100 percent of released reports. This is a release condition, not a quality target.
@@ -244,7 +244,7 @@ Full specification in `docs/prd/11-security-privacy.md`. Normative summary: thre
 
 ## 13. Observability
 
-Full specification in `docs/prd/13-observability.md`. Normative summary: a local stats panel driven by the dispatches table (cost, duration, completion and retry rates). Structured logs with no manuscript content above debug level. Optional Langfuse wiring, env-gated, mapping one session per run with the quality-metrics composite emitted as scores. Opt-in telemetry, off by default, carrying operational fields only.
+Full specification in `docs/prd/13-observability.md`. Normative summary: a local stats panel driven by the local run tables (cost, duration, completion and retry rates). Structured logs with no manuscript content above debug level. Optional Langfuse wiring, env-gated, mapping one session per run with the quality-metrics composite emitted as scores. Opt-in telemetry, off by default, carrying operational fields only.
 
 ## 14. Packaging and distribution
 

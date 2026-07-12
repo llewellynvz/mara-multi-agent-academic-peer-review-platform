@@ -95,7 +95,7 @@ The marketing kits encode all severity inside teal, lime, and bone. That recipe 
 
 **Components.** Vertical timeline (extension), status pill, progress and cost meters (extension), log stream (extension), findings ticker, recovery panel, toast.
 
-- **UI-31** The timeline lists the nine pipeline phases (Sanitisation, Manuscript analysis, Field context and citation audit, Specialist review, Integrity screening, Swarm stress test, Report construction, Meta-review and release gate, Memory and close). Each node has four base states: pending (bone-30% mark), active (teal pulse), done (lime check), failed (fail token). Degraded (a skipped optional phase) uses the warn token.
+- **UI-31** The timeline lists the nine pipeline phases (Intake and sanitisation, Manuscript analysis, Domain context, Specialist review, Integrity screening, Swarm evaluation, Report construction, Synthesis and the release gate, Production and close-out). Each node has four base states: pending (bone-30% mark), active (teal pulse), done (lime check), failed (fail token). Degraded (a skipped optional phase) uses the warn token.
 - **UI-32** The active phase expands to show per-lens status chips, each with a live finding count in mono. Chip states mirror the phase states.
 - **UI-33** A findings-headline ticker shows each new finding as a mono ID, a bold plain-language label, and a severity pill. Editor-only findings are masked in this stream as "1 confidential signal logged" and never reveal their content on this screen.
 - **UI-34** A cost and token meter renders in mono with a per-phase breakdown. It updates on each cost event and never estimates a figure it has not received.
@@ -123,7 +123,7 @@ The marketing kits encode all severity inside teal, lime, and bone. That recipe 
 - **UI-43** A finding ID in the report is interactive. Activating it opens the evidence-ledger side drawer for that finding, showing the ledger row and its manuscript anchor.
 - **UI-44** A manuscript anchor is interactive. Activating it opens an excerpt popover showing the anchored manuscript text, without leaving the report.
 - **UI-45** The Reviewer's private notes tab holds editor-only signals. On first open it shows a one-time explainer banner stating that these are editorial signals, not verdicts. This tab never appears in the author-facing report tab or its download.
-- **UI-46** Downloads present a primary pill "Download report (.docx)" that is pre-generated and downloads instantly. An overflow menu offers the private notes .docx, the report .md, the evidence ledger .md, and an everything .zip.
+- **UI-46** Downloads present a primary pill "Download report (.docx)" that is pre-generated and downloads instantly. An overflow menu offers the Reviewer's private notes .docx, the report .md, the evidence ledger .md, and the review archive .zip.
 - **UI-47** The private notes download and the report download are separate files. The author-facing report file contains no editor-only content and no integrity signal text.
 
 **States.** Loading: the report tab shows a skeleton while the markdown renders and the docx pre-generates. Empty: a results view for a cancelled-with-partial run shows only the phases that completed and marks the rest as not run. Error: a missing artifact shows a fail pill in place of the affected download, with the others still available.

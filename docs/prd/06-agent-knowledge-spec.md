@@ -19,7 +19,7 @@ Each agent is one or more typed workflow steps. The input contract lists what th
 | review-report-writer A | 6 | frontier | ledger, findings, swarm summary | FullReportEnvelope | `.claude/agents/review-report-writer.md` |
 | review-meta-reviewer | 7 | frontier | ledger, fragments, swarm, scope, calibration | MetaSynthesis | `.claude/agents/review-meta-reviewer.md` |
 | review-report-writer B | 7 | frontier | recommendation package, report-critique | ShippedReportEnvelope | `.claude/agents/review-report-writer.md` |
-| review-final-critic | 7 | frontier | report, editor summary, ledger, recommendation | CriticVerdict | `.claude/agents/review-final-critic.md` |
+| review-final-critic | 7 | frontier | report, reviewer's private notes, ledger, recommendation | CriticVerdict | `.claude/agents/review-final-critic.md` |
 | quality-metrics engine | 8 | cheap | ledger, reports, swarm, gate record | QualityMetricsDashboard | phase_8 quality_metrics prompt |
 | journal-scope scorer | 7 / 8 | cheap | journal scope, manuscript card, retrieval | JournalScopeScore | phase_8 journal_scope prompt |
 | review-calibrator | 8 | cheap | final report, editor decision, benchmarks | CalibrationReport | phase_8 review_calibrator prompt |
@@ -49,7 +49,7 @@ const Finding = z.object({
 });
 ```
 
-**AGENT-03.** The band field is validated against the confidence field. Green requires 0.98 to 1.00, Yellow 0.70 to 0.97, Red below 0.70, exactly as owned in knowledge/01. A cross-field refinement rejects a mismatch, so a Green band on a 0.80 confidence is a parse failure. A test asserts the refinement fires.
+**AGENT-03.** The band field is validated against the confidence field. Green requires 0.98 to 1.00, Yellow 0.70 to below 0.98, Red below 0.70, exactly as owned in knowledge/01. A cross-field refinement rejects a mismatch, so a Green band on a 0.80 confidence is a parse failure. A test asserts the refinement fires.
 
 **AGENT-04.** An empty anchor is a parse failure, enforcing the knowledge/01 rule that an unanchored finding never enters the ledger. A test submits a finding with a blank anchor and asserts rejection.
 
@@ -75,8 +75,8 @@ const MetaSynthesis = z.object({
   })).length(15),
   average: z.number(),                             // unweighted mean to one decimal
   bottlenecks: z.array(z.number().int()).length(3),
-  recommendation: z.enum(["accept", "minor-revision", "major-revision",
-                          "reject-and-resubmit", "reject"]),
+  recommendation: z.enum(["accept", "minor_revision", "major_revision",
+                          "reject_and_resubmit", "reject"]),
   recommendationConfidence: z.number().min(0).max(1),
   scopeFit: z.object({ score: z.number(), factorsUsed: z.array(z.string()) }),
   decisionHinges: z.array(z.object({ findingId: z.string(), hinge: z.string() })),
@@ -121,7 +121,7 @@ The swarm replaces the single simulated-population context with the original sev
 **AGENT-10.** Consensus entropy is Shannon entropy across the five recommendation categories, in bits:
 
 ```
-H = - Σ (p_i · log2 p_i)   for i in {accept, minor, major, reject-and-resubmit, reject}
+H = - Σ (p_i · log2 p_i)   for i in {accept, minor_revision, major_revision, reject_and_resubmit, reject}
 ```
 
 where `p_i` is the fraction of profiles in category `i` and a category with `p_i = 0` contributes zero. The maximum for five equal categories is log2(5) ≈ 2.32 bits. Above 1.5 bits is genuinely divided opinion, below 0.5 bits is near-consensus. A test computes H on a known distribution and asserts the value and the band.
@@ -199,7 +199,7 @@ Each invariant maps to a named mechanism and a verification test. An invariant w
 | 3 | Integrity findings are signals never verdicts, serious is editor-only, banned verdict terms gate-enforced | Signal classification in the finding schema, editor-only scope on serious, banned-term grep at the gate | Set a verdict term in author-facing text, assert block |
 | 4 | Developmental voice is a deliverable requirement | knowledge/04 and 06 loaded by writer and critic, tone-risk audit at the gate | Submit a destructive-phrasing letter, assert revise |
 | 5 | Manuscript content and author identity never leave in outbound queries, published reference metadata allowlisted, unpublished references excluded | Retrieval-confidentiality rule bound to the two retrieval nodes, outbound-query scan (PIPE-06) | Scan query log against manuscript text, assert no overlap outside the allowlist |
-| 6 | Specialist first pass blind, challenge round updates on evidence only, dissent preserved | Blind first-pass input (PIPE-07), Phase 2 injection at challenge (PIPE-08), evidence-only update rule | Feed a cross-lens field into a first pass, assert absence |
+| 6 | Specialist first pass blind, challenge round updates on evidence only, dissent preserved | Blind first-pass input (PIPE-07), Phase 2 injection at challenge (PIPE-08), evidence-only update rule | Feed a cross-lens field into a first pass, assert absence. Hold a fixture lens at dissent confidence 0.75 or above through the challenge round, assert it appears un-averaged in the merged ledger and visible to the swarm seed |
 | 7 | No agent passes its own gate | Final critic on a separate node (PIPE-09), arbitration by the orchestrator | Assert the verdict node differs from the writer node |
 | 8 | Max 2 fix cycles then logged arbitration | `.dountil()` cap of two, deterministic arbitration node (PIPE-14, PIPE-16) | Drive three would-be iterations, assert exit to logged arbitration |
 | 9 | Three-tier injection quarantine, Tier 3 halts | Sanitiser tier classification, Tier 3 halt at Phase 0 | Plant Tier 3 tampering, assert halt with no shipped document |
@@ -219,8 +219,8 @@ The rebuild replaces markdown fragment files with structured envelopes. The rule
 
 ```ts
 const ShippedReportEnvelope = z.object({
-  recommendation: z.enum(["accept", "minor-revision", "major-revision",
-                          "reject-and-resubmit", "reject"]),
+  recommendation: z.enum(["accept", "minor_revision", "major_revision",
+                          "reject_and_resubmit", "reject"]),
   recommendationConfidence: z.number().min(0).max(1),
   bodyMarkdown: z.string(),                        // the seven-part report, prose
   rubricTable: z.array(z.object({

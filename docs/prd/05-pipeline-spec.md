@@ -100,7 +100,7 @@ Each phase below states its purpose, inputs, outputs, dispatch group, model tier
 
 - **Purpose.** Turn the evidence into one editorial judgment, derive the shipped documents, and pass or fail them at the adversarial gate.
 - **Inputs.** The full report, the ledger, the swarm summary, the journal scope material, and the calibration memory.
-- **Outputs.** The meta-synthesis with final rubric scores and the rubric-mapping table, the recommendation package with confidence, the swarm report-critique, the shipped seven-part peer-review report, the editor summary, and the final-critic verdict.
+- **Outputs.** The meta-synthesis with final rubric scores and the rubric-mapping table, the recommendation package with confidence, the swarm report-critique, the shipped seven-part peer-review report, the reviewer's private notes, and the final-critic verdict.
 - **Dispatch group.** review-meta-reviewer and swarm report-evaluator (mode B) in parallel, then review-report-writer mode B, then review-final-critic.
 - **Model tier.** Meta-reviewer, writer mode B, and final critic frontier. Swarm mode B cheap.
 - **Parallelism.** The meta-reviewer runs concurrently with swarm mode B. The writer mode B waits on both.
@@ -111,8 +111,8 @@ Each phase below states its purpose, inputs, outputs, dispatch group, model tier
 ### Phase 8: Production and close-out
 
 - **Purpose.** Render the branded deliverables, compute the run analytics, and persist the cross-review lessons.
-- **Inputs.** The passed peer-review report, the editor summary, the ledger, the swarm summary, and the final-critic gate record.
-- **Outputs.** `Peer-Review-Report.docx` and `Editor-Summary.docx` in the Psynalytics house style, the quality-metrics dashboard, the journal scope record, and the calibration append.
+- **Inputs.** The passed peer-review report, the reviewer's private notes, the ledger, the swarm summary, and the final-critic gate record.
+- **Outputs.** `Peer-Review-Report.docx` and `Reviewer-Private-Notes.docx` in the Psynalytics house style, the quality-metrics dashboard, the journal scope record, and the calibration append.
 - **Dispatch group.** Deterministic document generation, plus the quality-metrics engine, the journal scope scorer, and the review calibrator as cheap judges. These are analytics, not gates.
 - **Model tier.** Cheap for the judges. Document rendering is deterministic code.
 - **Parallelism.** The three analytics judges run in parallel after the deliverables render.
@@ -211,12 +211,12 @@ The pipeline is autonomous by default. The release gate replaces the user approv
 
 ## 5.8 Failure handling per phase
 
-The failure contract is uniform: an agent that returns unusable output is re-dispatched once with the specific defect named. A second unusable return halts that phase, records a run-error flag in the checkpoint and in the editor summary run audit, and surfaces to the user with options.
+The failure contract is uniform: an agent that returns unusable output is re-dispatched once with the specific defect named. A second unusable return halts that phase, records a run-error flag in the checkpoint and in the reviewer's private notes run audit, and surfaces to the user with options.
 
 **PIPE-21.** Unusable output is defined by schema validation failure or a contract miss (missing anchor, missing required field, ungrounded claim). The retry dispatch names the exact defect. A test feeds a schema-invalid return and asserts one named-defect retry, then a halt on a second failure.
 
 **PIPE-22.** A hard stop halts cleanly with the checkpoint updated and a halt report carrying what was tried, the evidence, and two to three options. The hard-stop conditions are a Tier 3 tampering verdict, an ungroundable recommendation after cycle two, and manuscript materials too incomplete to review. A clean halt beats an ungrounded review. A test asserts each hard-stop condition produces a halt report and no shipped document.
 
-**PIPE-23.** A missing external artifact never produces an improvised substitute. The dependent check is marked not-run with the artifact named, the phase continues, and the gap is carried to the editor summary. A test asserts a missing similarity report yields a not-run outcome rather than an invented similarity figure.
+**PIPE-23.** A missing external artifact never produces an improvised substitute. The dependent check is marked not-run with the artifact named, the phase continues, and the gap is carried to the reviewer's private notes. A test asserts a missing similarity report yields a not-run outcome rather than an invented similarity figure.
 
-**PIPE-24.** Every halt, retry, arbitration, and gate cycle is written to the run audit in the editor summary with a checkpoint pointer, so the editor sees the full procedural history of the run. A test asserts the run audit reflects the recorded gate-cycle counters and any arbitration events.
+**PIPE-24.** Every halt, retry, arbitration, and gate cycle is written to the run audit in the reviewer's private notes with a checkpoint pointer, so the editor sees the full procedural history of the run. A test asserts the run audit reflects the recorded gate-cycle counters and any arbitration events.

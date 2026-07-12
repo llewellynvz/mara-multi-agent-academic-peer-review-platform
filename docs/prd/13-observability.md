@@ -7,7 +7,7 @@ Observability is local first. Everything an owner needs to understand a run is c
 
 ## 13.1 Local statistics panel
 
-**OBS-01** The statistics panel is computed entirely from the `dispatches` and `phase_checkpoints` tables (Section 7) and requires no external service. It renders per run and in aggregate across all runs.
+**OBS-01** The statistics panel is computed entirely from the `dispatches`, `phase_checkpoints`, `reviews`, and `findings` tables (Section 7) and requires no external service. It renders per run and in aggregate across all runs.
 
 **OBS-02** The panel reports these metrics, each with its source:
 
@@ -60,9 +60,9 @@ composite = 0.30 * evidenceGrounding
 | Component | Weight | Computation and source |
 | --- | --- | --- |
 | Evidence grounding | 30% | Mechanical share of report claims that resolve to a finding identifier. The report writer tags each claim, and a linter resolves each tag against the `findings` table. The value is resolved claims divided by total claims |
-| Actionability | 25% | A cheap-tier LLM judge scores the author letter's recommendations for concreteness, returning a value in 0 to 1 |
-| Decision stability | 20% | One minus the normalised Shannon entropy of the recommendation distribution produced by the swarm simulator. A run where the simulated reviewers agree scores near 1 |
-| Tone risk | 15% | A cheap-tier LLM judge scores the author letter for tone risk against the developmental-voice standard. The composite uses one minus this risk, so a safer letter raises the score |
+| Actionability | 25% | A cheap-tier LLM judge scores the peer-review report's recommendations for concreteness, returning a value in 0 to 1 |
+| Decision stability | 20% | The proportion of swarm profiles whose recommendation survived the interaction rounds unchanged, carried from the swarm output. A run where most simulated reviewers hold their recommendation through the rounds scores near 1. Consensus entropy over the recommendation distribution is reported separately as its own metric |
+| Tone risk | 15% | A cheap-tier LLM judge scores the peer-review report for tone risk against the developmental-voice standard. The composite uses one minus this risk, so a safer report raises the score |
 | Unsupported-claim penalty | 10% | A severity-weighted share of claims that do not resolve to a finding. The composite uses one minus this penalty. It is severity-weighted so that it measures the harm of unsupported claims rather than duplicating the evidence-grounding count |
 
 **OBS-15** Evidence grounding and the unsupported-claim penalty both derive from the same claim-resolution linter but measure different things: grounding is the plain coverage ratio, and the penalty is the severity-weighted residual. This split is deliberate, so a single unsupported but high-severity claim is penalised more sharply than the coverage ratio alone would show.

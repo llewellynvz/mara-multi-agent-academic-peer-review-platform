@@ -30,7 +30,7 @@ The run header. One row per manuscript under review.
 | title | TEXT | NULL |
 | status | TEXT | NOT NULL, DEFAULT `created`, CHECK in (`created`, `sanitizing`, `running`, `paused`, `awaiting_input`, `completed`, `failed`, `cancelled`) |
 | current_phase | TEXT | NULL, CHECK in (`phase_0` … `phase_8`) |
-| recommendation | TEXT | NULL, CHECK in (`accept`, `minor_revision`, `major_revision`, `reject_resubmit`, `reject`) |
+| recommendation | TEXT | NULL, CHECK in (`accept`, `minor_revision`, `major_revision`, `reject_and_resubmit`, `reject`) |
 | recommendation_confidence | REAL | NULL, CHECK between 0 and 1 |
 | provider_profile | TEXT | NOT NULL, DEFAULT `default` |
 | options_json | TEXT | NOT NULL, DEFAULT `{}` |
@@ -108,7 +108,7 @@ Durable workflow state for the Mastra pipeline, one row per review per phase.
 | review_id | TEXT | NOT NULL, REFERENCES reviews(id) ON DELETE CASCADE |
 | phase | TEXT | NOT NULL |
 | status | TEXT | NOT NULL, CHECK in (`pending`, `in_progress`, `completed`, `failed`, `skipped`) |
-| gate_verdict | TEXT | NULL, CHECK in (`pass`, `revise`, `revise_specialist`, `arbitrated`) |
+| gate_verdict | TEXT | NULL, CHECK in (`pass`, `revise`, `revise_specialist`, `block`, `arbitrated`) |
 | fix_cycle_count | INTEGER | NOT NULL, DEFAULT 0 |
 | snapshot_json | TEXT | NULL |
 | started_at | TEXT | NULL |
@@ -127,13 +127,13 @@ The audit timeline. Phase transitions, gate verdicts, arbitrations, control ackn
 | review_id | TEXT | NOT NULL, REFERENCES reviews(id) ON DELETE CASCADE |
 | seq | INTEGER | NOT NULL |
 | ts | TEXT | NOT NULL |
-| kind | TEXT | NOT NULL, CHECK in (`phase_transition`, `gate_verdict`, `arbitration`, `web_query`, `control_ack`, `deliverable_released`, `error`) |
+| kind | TEXT | NOT NULL, CHECK in (`phase_transition`, `gate_verdict`, `arbitration`, `web_query`, `control_ack`, `deliverable_released`, `finding_recorded`, `run_terminal`, `error`) |
 | phase | TEXT | NULL |
 | payload_json | TEXT | NOT NULL, DEFAULT `{}` |
 | egress_target | TEXT | NULL, CHECK in (`crossref`, `openalex`, `semantic_scholar`) |
 | egress_query | TEXT | NULL |
 
-Constraints: `UNIQUE (review_id, seq)`. Index: `idx_events_review_seq (review_id, seq)`. `seq` is a per-review monotonic counter that also drives Server-Sent Events reconnection (see API-16 in Section 8). For `web_query` events, `egress_target` and `egress_query` record the exact signed query that left the machine.
+Constraints: `UNIQUE (review_id, seq)`. Index: `idx_events_review_seq (review_id, seq)`. `seq` is a per-review monotonic counter that also drives Server-Sent Events reconnection (see API-26 in Section 8). The `finding_recorded` and `run_terminal` kinds carry the persisted finding-headline and terminal-outcome events that the stream replays exactly by `Last-Event-ID`. The ephemeral lens, cost, ETA, and log ticks are not stored here per tick. Cost lives in `dispatches` and lens state in `phase_checkpoints`, and both are re-derived on reconnect. For `web_query` events, `egress_target` and `egress_query` record the exact signed query that left the machine.
 
 ### dispatches (append-only)
 
@@ -185,7 +185,8 @@ The shipped files and their release state.
 | --- | --- | --- |
 | id | TEXT | PRIMARY KEY |
 | review_id | TEXT | NOT NULL, REFERENCES reviews(id) ON DELETE CASCADE |
-| kind | TEXT | NOT NULL, CHECK in (`author_letter`, `editor_summary`, `full_report`, `ledger_export`) |
+| kind | TEXT | NOT NULL, CHECK in (`peer_review_report`, `reviewer_private_notes`, `ledger_export`, `run_archive`) |
+| format | TEXT | NOT NULL, CHECK in (`docx`, `md`, `zip`) |
 | path | TEXT | NOT NULL |
 | checksum | TEXT | NOT NULL, sha256 hex |
 | byte_size | INTEGER | NOT NULL |
@@ -193,7 +194,7 @@ The shipped files and their release state.
 | released_at | TEXT | NULL |
 | created_at | TEXT | NOT NULL |
 
-Constraints: `UNIQUE (review_id, kind)`. Index: `idx_deliverables_review (review_id)`.
+Constraints: `UNIQUE (review_id, kind, format)`. Index: `idx_deliverables_review (review_id)`. The two report kinds each carry a `docx` and an `md` row, `ledger_export` carries `md` only, and `run_archive` carries `zip` only.
 
 **DATA-10** `released` is set to `1` only after the review-final-critic returns a passing verdict for the run. The download endpoint (Section 8) refuses any deliverable whose `released` value is `0`.
 
@@ -314,10 +315,12 @@ data/
       manuscript/structure.tei.xml TEI structure map
   deliverables/
     <review_id>/
-      author-letter.docx
-      editor-summary.docx
-      full-report.md
-      ledger.csv
+      Peer-Review-Report.docx
+      Peer-Review-Report.md
+      Reviewer-Private-Notes.docx
+      Reviewer-Private-Notes.md
+      Evidence-Ledger.md
+      Review-Archive.zip
 ```
 
 ## 7.7 Retention and deletion

@@ -79,7 +79,7 @@ The egress control exists so that no part of a confidential manuscript can leave
 
 **SEC-25** The statement points the owner to each configured provider's data-retention policy, because content sent to a third-party model is governed by that provider's terms. The product does not claim control over how a provider handles a request once it is sent.
 
-**SEC-26** The statement declares that MARA is developmental pre-submission support authored to help an author improve a manuscript before submission. It is not a journal decision, not an editorial acceptance, and not a substitute for formal peer review. This disclaimer appears in the editor summary and in the interface.
+**SEC-26** The statement declares that MARA is developmental pre-submission support authored to help an author improve a manuscript before submission. It is not a journal decision, not an editorial acceptance, and not a substitute for formal peer review. This disclaimer appears in the reviewer's private notes and in the interface.
 
 ## 11.8 Dependency and supply-chain policy
 

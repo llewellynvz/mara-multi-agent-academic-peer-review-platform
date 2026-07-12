@@ -75,7 +75,7 @@ Run control is expressed as intents. The API server inserts a row into `run_comm
 
 ## 8.5 Deliverables
 
-**API-15** `GET /api/reviews/{id}/deliverables` lists deliverables with `kind`, `released`, `byteSize`, and `checksum`. `GET /api/reviews/{id}/deliverables/{kind}` streams the file. If the deliverable's `released` value is `0`, the endpoint returns `409` with the error code `deliverable_not_released` and does not stream the file (Section 7, DATA-10).
+**API-15** `GET /api/reviews/{id}/deliverables` lists deliverables with `kind`, `format`, `released`, `byteSize`, and `checksum`. The deliverable kinds are `peer_review_report`, `reviewer_private_notes`, `ledger_export`, and `run_archive`. `GET /api/reviews/{id}/deliverables/{kind}?format=docx|md|zip` streams the file, with the default format `docx` for the two report kinds, `md` for `ledger_export`, and `zip` for `run_archive`. If the deliverable's `released` value is `0`, the endpoint returns `409` with the error code `deliverable_not_released` and does not stream the file (Section 7, DATA-10). The `run_archive` is assembled on demand from the released deliverables and the run audit on its first `GET`, then stored with its checksum and served from cache on later requests like any other deliverable.
 
 ## 8.6 Settings and keys
 
@@ -113,7 +113,7 @@ type ApiError = { error: { code: string; message: string; details?: unknown } };
 
 ## 8.9 Server-Sent Events stream
 
-**API-22** `GET /api/reviews/{id}/events` opens a `text/event-stream`. The stream is the live view of a run and is backed by the append-only `review_events` table, so it can be replayed after a disconnect. Each message carries an `id:` line equal to the event's `review_events.seq`, an `event:` name, and a `data:` JSON payload.
+**API-22** `GET /api/reviews/{id}/events` opens a `text/event-stream`. The stream merges two sources. Persisted audit events are backed by the append-only `review_events` table and each carries an `id:` line equal to the event's `review_events.seq`, an `event:` name, and a `data:` JSON payload, so they replay exactly after a disconnect. These are `phase_status` (stored as `phase_transition`), `gate_verdict`, `finding_headline` (stored as `finding_recorded`), and `run_complete` and `run_failed` (both stored as `run_terminal`, the payload distinguishing the outcome). Ephemeral derived events carry no `id:` line, are never persisted as `review_events` rows, and are re-derived on connect from `phase_checkpoints` and `dispatches`. These are `lens_status`, `cost_tick`, `eta_update`, and `log_event`.
 
 **API-23** The event catalogue is:
 
@@ -135,7 +135,7 @@ type ApiError = { error: { code: string; message: string; details?: unknown } };
 
 ## 8.10 Idempotency and reconnection
 
-**API-26** On reconnect, the client sends the `Last-Event-ID` header with the last `seq` it received. The server replays every `review_events` row for that review with `seq` greater than the supplied value, in order, then resumes the live tail. Because `review_events` is append-only and sequenced per review (Section 7), replay is exact and produces no duplicates or gaps.
+**API-26** On reconnect, the client sends the `Last-Event-ID` header with the last `seq` it received. The server replays every `review_events` row for that review with `seq` greater than the supplied value, in order, then resumes the live tail. Exact replay applies to the persisted audit kinds only. Because `review_events` is append-only and sequenced per review (Section 7), that replay is exact and produces no duplicates or gaps in the audit kinds. The ephemeral derived events (`lens_status`, `cost_tick`, `eta_update`, `log_event`) are not replayed from the sequence. They are recomputed on connect from `phase_checkpoints` and `dispatches`, so a reconnecting client converges to the current lens, cost, ETA, and log state without gaps.
 
 **API-27** Create and upload endpoints accept an optional `Idempotency-Key` header. A repeated request with the same key and the same review returns the original result rather than creating a duplicate, which protects against a double-submitted form or a retried upload.
 
